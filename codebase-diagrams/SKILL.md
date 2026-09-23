@@ -34,11 +34,15 @@ Bundled resources:
 
 ## Step 0 – Preflight (never skip, never work around)
 
-Run the preflight before touching the codebase:
+Run the preflight from the root of the project you are diagramming, before touching the codebase:
 
 ```bash
-bash <skill-dir>/scripts/preflight.sh
+cd <project-root> && bash <skill-dir>/scripts/preflight.sh
 ```
+
+It puts its trial workspace inside that project (in the skill folder if the skill is installed in
+the project, else `<project>/.claude/tmp/`, removed again afterwards), so a pass also proves Docker
+can see the directory the real renders will write to.
 
 It locates a Playwright-enabled Structurizr build, checks `d2`, and does a real trial export of a
 tiny workspace and a tiny D2 file to PNG. It prints the exact install commands for anything
@@ -60,6 +64,10 @@ packages or download binaries yourself unless the user explicitly asks you to. T
 toolchain so that the diagrams are reproducible on their machine and in CI; a silent fallback
 produces artefacts nobody can regenerate. A first run may take a few minutes while Structurizr's
 Playwright downloads Chromium - that is expected, tell the user and wait.
+
+One failure is not a missing tool: "Docker cannot see <project>". The Docker VM does not share
+that path (typical on Colima, which shares only `$HOME` by default), so the container sees an empty
+directory. Relay the fix options the preflight prints instead of install instructions.
 
 Re-run the preflight after the user reports installing something; only continue once it passes.
 
