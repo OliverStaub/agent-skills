@@ -1,32 +1,38 @@
 ---
 name: codebase-diagrams
-description: Generate architecture and onboarding diagrams for an existing codebase - a C4 model (System Context, Container, Component, Deployment, Dynamic views) written in Structurizr DSL and rendered to PNG/SVG, plus free-form D2 diagrams for infrastructure topology, business-logic flows, request sequences, data models and module dependencies. Use this whenever someone wants to understand, document, visualise or get onboarded onto a codebase, asks for "architecture diagrams", "C4", "Structurizr", "D2", "system overview", "how does this service work", "draw the infrastructure", "sequence diagram of X", "data model diagram", or wants docs/architecture material - even if they don't name a diagram type. Also use it to update diagrams that were previously generated with it.
+description: Generate a small, deliberately chosen set of architecture and onboarding diagrams for an existing codebase - C4 views (System Context, Container, and where they earn it Component, Deployment, Dynamic) written in Structurizr DSL, plus free-form D2 diagrams for infrastructure topology, business-logic flows, request sequences, data models and module dependencies, rendered to SVG/PNG. Use this whenever someone wants to understand, document, visualise or get onboarded onto a codebase, asks for "architecture diagrams", "C4", "Structurizr", "D2", "system overview", "how does this service work", "draw the infrastructure", "sequence diagram of X", "data model diagram", or wants docs/architecture material - even if they don't name a diagram type. Also use it to update diagrams that were previously generated with it.
 ---
 
 # Codebase diagrams (C4 via Structurizr + free-form via D2)
 
-The goal is a small set of diagrams that let a newcomer understand a codebase quickly: what the
-system is and who uses it, what runs where, how the important pieces talk to each other, and how
-the core business flows work. Two tools, deliberately:
+The goal is the **smallest set of diagrams that lets a newcomer understand a codebase quickly**:
+what the system is, what runs and how the pieces talk, and how the one or two flows that matter
+actually work. A handful of diagrams that are each correct, finished and worth opening beats a
+folder of a dozen that nobody reads - every extra diagram dilutes the good ones and is one more
+thing that goes stale. Two tools, deliberately:
 
 - **Structurizr DSL** for the C4 model. One `workspace.dsl` is the source of truth for the static
-  structure; views are exported to PNG + SVG with the Structurizr renderer.
-- **D2** for everything C4 is bad at: infrastructure/network topology, business-process flows,
-  sequence diagrams, ER/data models, module dependency graphs, CI/CD pipelines.
+  structure; views are exported with the Structurizr renderer.
+- **D2** for the few things C4 is bad at: infrastructure topology, business-process flows,
+  sequence diagrams, data models, module dependency graphs.
 
-Output is **sources + rendered images only** (no explanatory Markdown unless asked), laid out as:
+Output is **sources + rendered images only** (no explanatory Markdown unless asked):
 
 ```
-<target>/                      default: docs/architecture/
+<target>/                      agreed with the user in Step 3 (suggest docs/architecture/)
   workspace.dsl                C4 model (all views)
-  c4/                          exported images, one PNG + SVG per view
-  d2/                          <name>.d2 next to <name>.svg and <name>.png
+  c4/                          one SVG per view (generated - replaced on every render)
+  d2/                          <name>.d2 next to <name>.svg
 ```
+
+Images are SVG by default (small, sharp, render on GitHub/GitLab). Pass `--format png` or
+`--format both` to the render scripts if the user wants PNGs committed. Either way the scripts
+write PNG previews to a scratch folder outside the repo for you to look at.
 
 Bundled resources:
 - `scripts/preflight.sh` – verifies the toolchain end-to-end (mandatory first step)
-- `scripts/render-c4.sh <dir>` – validate `workspace.dsl` and export PNG + SVG into `c4/`
-- `scripts/render-d2.sh <dir>` – format, validate and render every `.d2` in `d2/`
+- `scripts/render-c4.sh <dir> [--format svg|png|both]` – validate `workspace.dsl`, export views into `c4/`
+- `scripts/render-d2.sh <dir> [--format svg|png|both]` – format, validate and render every `.d2` in `d2/`
 - `references/structurizr-dsl.md` – DSL syntax, views, styles, validation rules, full example
 - `references/d2.md` – D2 syntax, shapes, sequence/sql_table, layout advice, examples
 - `references/codebase-exploration.md` – how to find C4 elements and diagram-worthy flows in code
@@ -71,26 +77,23 @@ directory. Relay the fix options the preflight prints instead of install instruc
 
 Re-run the preflight after the user reports installing something; only continue once it passes.
 
-## Step 1 – Agree the scope (briefly)
+## Step 1 – Look for existing diagrams
 
-Most requests are answerable with sensible defaults, so ask only when a wrong guess is expensive:
+Before exploring, check whether the repo already has architecture diagrams:
+`find . -name '*.dsl' -o -name '*.d2' -o -name '*.puml' -o -name '*.mmd' -o -name '*.drawio'`
+(skip `node_modules`, `vendor`, build output), plus `docs/`, `architecture/`, `ARCHITECTURE*`.
 
-- **Which system?** A repo with one deployable is one software system. A monorepo with many
-  services is usually still *one* software system with many containers (services are containers
-  in C4 terms) - unless the services are owned by different teams and released independently, in
-  which case ask which one to model, or model the landscape. Mixing these up produces diagrams
-  that mislead newcomers, so ask if it isn't obvious from the repo layout.
-- **Depth.** Default: System Context + Container for the system, Component view for the one or two
-  containers where most business logic lives, Deployment view when infrastructure definitions
-  exist (Dockerfiles, compose, k8s, Terraform, Helm, serverless configs), one or two Dynamic views
-  for the most important runtime flows. Component views of every container are noise.
-- **Target directory.** Default `docs/architecture/`. If a `workspace.dsl` already exists anywhere
-  in the repo, extend it (keep its view keys, identifiers and styles) instead of creating another.
+- **A `workspace.dsl` or `d2/` folder from this skill exists** → that directory is the target;
+  follow "Updating existing diagrams" at the end of this file instead of the steps below.
+- **Other diagrams exist** (PlantUML, Mermaid, draw.io, images in `docs/`) → their location is the
+  natural home; propose putting the new sources next to them, and reuse their names for things.
+- **Nothing exists** and the user did not say where → you will ask in Step 3. Don't pick a folder
+  silently: where docs live is a team convention (`docs/`, `doc/architecture/`, a separate docs
+  repo, a wiki export folder...) and a wrong guess means the user has to move files and fix links.
 
-State the choices you made in one or two sentences before starting the exploration so the user can
-redirect early.
+If the user already named a location in their request, use it and don't ask.
 
-## Step 2 – Explore the codebase before drawing anything
+## Step 2 – Explore the codebase before deciding anything
 
 Read `references/codebase-exploration.md` and follow it. The point is to collect *evidence*, not to
 guess from folder names. Keep a scratch table (not committed) of every element and relationship
@@ -109,16 +112,73 @@ copied from a README that the lockfiles contradict. If something is important bu
 (e.g. an external system referenced only by a hostname), include it tagged `Unverified` and list
 it in the final report so the user can confirm.
 
-While exploring, also note candidate free-form diagrams (Step 5): the 1-3 request paths that
-touch the most containers, the core domain entity and its lifecycle/state machine, the data model,
-anything with a non-trivial infrastructure topology, and (for monorepos) the module dependency
-structure.
+Also decide **which system** you are modelling. A repo with one deployable is one software system.
+A monorepo with many services is usually still *one* software system with many containers - unless
+the services are owned by different teams and released independently; then ask which one to model.
 
-## Step 3 – Write `workspace.dsl`
+While exploring, note *candidate* diagrams - flows, entities, topologies that might be worth
+drawing. Candidates are cheap; Step 3 is where most of them get cut.
+
+## Step 3 – Plan a small diagram set, then confirm it (and the location) with the user
+
+This is the step that decides whether the output is useful, so think it through rather than
+drawing everything the exploration surfaced. Start from the questions a new developer on *this*
+codebase would actually ask in their first week, then pick the fewest diagrams that answer them.
+
+**Budget: usually 3-5 diagrams in total** (C4 views and D2 diagrams combined). A small service or
+library may need 2; a large distributed system may justify 6-7. Going beyond that needs the user
+to ask for it. If you find yourself planning more, you are drawing things because you *can*, not
+because someone needs them.
+
+**The default core** - start here and add only what passes the tests below:
+1. **Container view** - almost always. It is the single most useful architecture diagram.
+2. **System Context view** - only if it shows something the container view doesn't: several user
+   roles or several external systems. With one user and zero or one external system, skip it; the
+   container view already shows that.
+3. **One diagram for the most important runtime flow** - the request path or business process a
+   newcomer is most likely to touch or break. Either a C4 dynamic view or a D2 sequence diagram,
+   not both for the same flow.
+
+**Every further candidate must pass all four tests**, otherwise leave it out (and mention it as a
+possible follow-up in the report):
+- *Real question*: you can name the concrete question it answers ("how does a payment get retried
+  after a webhook fails?"), not a category ("data model").
+- *Not already answered*: no other planned diagram shows substantially the same thing. Two
+  deployment views that differ in one box, or a dependency graph that restates the component
+  view, fail this test.
+- *Enough substance*: there is real structure to show - branching, several participants, a
+  non-obvious topology, 5+ meaningful elements. A three-box flow is a sentence, not a diagram.
+- *It is a diagram*: information that is really a table (permission matrices, env-var lists,
+  config options), a list, or prose does not belong in D2 - drop it from the plan.
+
+Typical additions that often pass, when the code gives them substance:
+
+| Question | Diagram | When it earns its place |
+|---|---|---|
+| "What's inside the main service?" | C4 Component view | The one container where most business logic lives *and* its internal modules are non-obvious. Never for every container. |
+| "What actually runs where?" | C4 Deployment view *or* D2 infra topology (not both) | IaC/k8s/cloud config defines a non-trivial production topology. Model production only, not each environment. |
+| "What states can the main entity be in?" | D2 state diagram | An explicit status field with guarded transitions spread across the code. |
+| "What is the data model?" | D2 ER diagram (`sql_table`) | Real schema/migrations with 5+ related tables; cap at the ~10-15 central ones. |
+| "How are events routed?" | D2 messaging topology | Event-driven system with more than a couple of topics. |
+| "How do modules depend on each other?" | D2 dependency graph | Monorepos/layered systems where the rules or cycles matter and no component view covers it. |
+
+**Then stop and confirm with the user** in one short message (use the AskUserQuestion tool if
+available). Show the plan as a list - one line per diagram: name, the question it answers - plus
+one line listing the candidates you deliberately left out. If Step 1 found no existing diagram
+location, ask where to save them in the same message, offering `docs/architecture/` as the
+default and any existing docs folder you spotted as alternatives. One round of questions, not
+several. Proceed once the user answers; if they add or drop diagrams, adjust the plan.
+
+If you are running non-interactively (no way to get an answer), use the default location and the
+plan as drafted, and state both at the top of the final report.
+
+## Step 4 – Write `workspace.dsl`
 
 Read `references/structurizr-dsl.md` (at minimum sections 2-7 and 9) before writing. Start
-from `assets/workspace-template.dsl` when there is no existing workspace. Conventions that make
-the resulting diagrams useful for onboarding:
+from `assets/workspace-template.dsl` when there is no existing workspace, and only define the
+views that are in the agreed plan - the model can contain more elements than any one view shows,
+but every view in the file gets exported, so an unplanned view becomes an unplanned file.
+Conventions that make the resulting diagrams useful for onboarding:
 
 - `!identifiers hierarchical`, camelCase identifiers, display names as a newcomer would say them
   ("Order Service", not "order-svc-v2"), technology strings from the actual lockfiles/base images
@@ -137,53 +197,40 @@ the resulting diagrams useful for onboarding:
 - Component views: components are the major internal building blocks a newcomer navigates by
   (modules, bounded contexts, layers) - typically 5-12 per container, each mapped to a directory
   or package. Never one component per class or file.
-- Deployment view: model the real environment (nodes = k8s cluster/namespace/pod, cloud
-  account/region/service, VM, container runtime) and attach `containerInstance`s. Use the built-in
-  cloud/k8s themes listed in the reference if the tags match.
-- Dynamic views: one per key flow, 4-10 steps, each step an instance of a relationship that exists
-  in the static model, with the step text describing *this* interaction ("Reserves stock for the
-  order").
+- Deployment view (if planned): model production - or the one environment the user cares about -
+  not every environment. Nodes are k8s cluster/namespace/pod, cloud account/region/service, VM or
+  container runtime, with `containerInstance`s attached. Use the built-in cloud/k8s themes listed
+  in the reference if the tags match.
+- Dynamic views (if planned): only for the flow(s) in the plan, 4-10 steps, each step an instance
+  of a relationship that exists in the static model, with the step text describing *this*
+  interaction ("Reserves stock for the order").
 
-## Step 4 – Validate and render the C4 views
+## Step 5 – Render and check the C4 views
 
 ```bash
 bash <skill-dir>/scripts/render-c4.sh <target-dir>
 ```
 
 The script runs `validate` first and prints the parser error with its line number; fix and
-re-run until clean. It then exports every view to `<target>/c4/` as PNG and SVG.
+re-run until clean. It then replaces `<target>/c4/` with one image per view (Structurizr's
+automatic `-key` legend images are dropped) and prints the folder with PNG previews.
 
-Then **look at the images** (open the PNGs with your file-reading tool). Check: all expected views
-exported, no view is an unreadable hairball, labels are not truncated, external systems are
-visually distinct, arrows point in the direction of the initiator. Fix by adjusting
-`autoLayout` direction/separation, excluding elements, splitting views, or shortening labels -
-not by dropping information the newcomer needs. Re-render after each change.
+Then **look at every preview PNG** with your file-reading tool. Check: all planned views exported,
+no view is an unreadable hairball, labels are not truncated, external systems are visually
+distinct, arrows point in the direction of the initiator. Fix by adjusting `autoLayout`
+direction/separation, excluding elements, or shortening labels - not by dropping information the
+newcomer needs. Re-render after each change.
 
-## Step 5 – Decide which free-form diagrams earn their place
-
-Each D2 diagram must answer one concrete question a newcomer asks. Aim for 3-6 in total; pick
-from this table based on what the exploration found, and skip anything the C4 views already
-answer well:
-
-| Question | Diagram | D2 idiom | When it is worth it |
-|---|---|---|---|
-| "What actually runs where, and how does traffic get in?" | Infrastructure topology | containers for cloud/account/VPC/cluster, `cloud`/`cylinder`/`queue` shapes, `--layout elk` | Networking, multiple environments, CDN/DNS/WAF, IaC present. The C4 deployment view shows the logical mapping; this one shows the real topology. |
-| "What happens when a user does X?" | Sequence diagram | `shape: sequence_diagram`, spans, groups for error paths | The 1-3 flows that cross the most containers or have tricky failure handling |
-| "How does the core business process work?" | Flowchart / swimlanes | containers as lanes, `diamond` decisions, `oval` terminals | Multi-step domain processes (checkout, claims, onboarding, approval) |
-| "What states can the main entity be in?" | State diagram | shapes as states, labelled edges as transitions | An entity with an explicit status/state field and guarded transitions |
-| "What is the data model?" | ER diagram | `sql_table` with PK/FK, FK edges | ORM models / migrations / schema files exist; cap at the ~10-20 central tables |
-| "How do the modules/packages depend on each other?" | Dependency graph | one shape per module, `--layout elk`, classes for layers | Monorepos, layered architectures, when import cycles matter |
-| "How does code get to production?" | CI/CD pipeline | `step` shapes left-to-right | Non-trivial pipelines (multi-stage, environments, gates) |
-| "How are events/messages routed?" | Messaging topology | `queue` shapes, producers/consumers, classes for topics | Event-driven systems with more than a couple of topics |
-
-Tell the user which ones you chose and why in one line each.
-
-## Step 6 – Write and render the D2 diagrams
+## Step 6 – Write and render the D2 diagrams from the plan
 
 Read `references/d2.md` (sections 2, 4-5 always; 6, 8 when using sql_table or sequence
-diagrams; 11 before rendering). One file per diagram in `<target>/d2/`, kebab-case names that say
-what the diagram answers (`infra-production.d2`, `seq-checkout.d2`, `flow-order-lifecycle.d2`,
-`er-core-schema.d2`, `deps-modules.d2`).
+diagrams; 11 before rendering). One file per planned diagram in `<target>/d2/`, kebab-case names
+that say what the diagram answers (`seq-checkout.d2`, `flow-order-lifecycle.d2`, `er-core-schema.d2`).
+
+**Finish one diagram before starting the next**: write it, render it, look at the preview, fix it.
+Writing all sources first and rendering at the end is how half-done diagrams end up in the repo.
+If a planned diagram turns out not to be worth it once you draw it (too thin, duplicates another),
+delete its source and mention it in the report rather than shipping a weak one.
 
 Conventions:
 - Put a title at the top as a `text` shape or use `title: |md # ... |` style header, and keep
@@ -203,28 +250,32 @@ Render with:
 bash <skill-dir>/scripts/render-d2.sh <target-dir>
 ```
 
-It formats (`d2 fmt`), validates, and renders each `.d2` to SVG and PNG next to the source.
-Then look at each PNG and fix layout problems (crossings, overlaps, unreadable size) with
-direction changes, containers, or the ELK engine before declaring done.
+It formats (`d2 fmt`), validates, and renders each `.d2` next to its source, writes previews to
+the scratch folder, and warns about images whose `.d2` source no longer exists. Look at each
+preview and fix layout problems (crossings, overlaps, unreadable size) with direction changes,
+containers, or the ELK engine before moving on.
 
 ## Step 7 – Final check and report
 
 Before reporting, verify:
 
 - [ ] Preflight passed in this session; every image was produced by the scripts, not by hand
+- [ ] The files on disk are exactly the agreed plan - no extra views, no leftover or orphan files
+      (`find <target> -type f` and compare)
 - [ ] Every element and relationship in `workspace.dsl` traces to evidence you saw
 - [ ] `render-c4.sh` and `render-d2.sh` both exit 0 on the final sources (re-run them once more)
-- [ ] Each view/diagram is legible at a glance (you looked at every PNG)
+- [ ] Each diagram is finished and legible at a glance (you looked at every preview)
 - [ ] Same name for the same thing across C4 and D2; technology labels match the lockfiles
 - [ ] No diagram exceeds roughly 15-20 elements; larger ones were split
 - [ ] Elements you could not verify are tagged `Unverified` and listed below
 
 Report to the user in this shape (short, no recap of the steps):
 
-1. Which system/scope was modelled and any assumption that could be wrong.
-2. The file list with one line per diagram: what question it answers.
-3. Open points: unverified elements, flows you saw but did not diagram, suggested follow-ups
-   (e.g. "the payment retry logic in `worker/retry.py` deserves its own state diagram").
+1. Which system/scope was modelled, where the files are, and any assumption that could be wrong.
+2. One line per diagram: file and the question it answers.
+3. Open points: unverified elements, and the candidates you left out with a one-line reason each
+   (e.g. "payment retry state machine in `worker/retry.py` - worth a state diagram if you work on
+   billing"). The user can ask for any of them later.
 4. How to regenerate: the two script commands (or the equivalent raw `structurizr`/`d2`
    commands if the user wants them in CI).
 
@@ -240,6 +291,9 @@ re-flow layouts, do not polish wording, colours or ordering - and report that th
 still accurate, listing what you checked. Churn in diagram sources without a substantive reason
 makes reviewers stop trusting the diffs, and re-rendered images with only pixel-level differences
 pollute the repo history.
+
+Keep the image format the repo already uses: if the existing `c4/` or `d2/` folders contain PNGs,
+pass `--format png` (or `both`) to the render scripts - the default `svg` would replace them.
 
 When something did change, make the minimal edit that fixes it, keep identifiers, view keys and
 styles stable, re-render (the scripts regenerate all views; that is fine, but do not hand-edit

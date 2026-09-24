@@ -139,3 +139,10 @@ How to install D2:
   offline, update d2 (0.9+ has a built-in renderer).
 EOF
 }
+
+# Scratch directory (outside the repo) for PNG previews of one diagram target.
+#   preview_dir <abs-target-dir>
+preview_dir() {
+  local id; id="$(printf '%s' "$1" | cksum | cut -d' ' -f1)"
+  printf '%s/codebase-diagrams-preview/%s-%s' "${TMPDIR:-/tmp}" "$(basename "$1")" "$id" | sed 's#//*#/#g'
+}
