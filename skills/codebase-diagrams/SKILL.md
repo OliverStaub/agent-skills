@@ -1,6 +1,7 @@
 ---
 name: codebase-diagrams
-description: Generate a small, deliberately chosen set of architecture and onboarding diagrams for an existing codebase - C4 views (System Context, Container, and where they earn it Component, Deployment, Dynamic) written in Structurizr DSL, plus free-form D2 diagrams for infrastructure topology, business-logic flows, request sequences, data models and module dependencies, rendered to SVG/PNG. Use this whenever someone wants to understand, document, visualise or get onboarded onto a codebase, asks for "architecture diagrams", "C4", "Structurizr", "D2", "system overview", "how does this service work", "draw the infrastructure", "sequence diagram of X", "data model diagram", or wants docs/architecture material - even if they don't name a diagram type. Also use it to update diagrams that were previously generated with it.
+description: Generate a curated set of architecture/onboarding diagrams for a codebase - C4 views in Structurizr DSL plus D2 diagrams (infra, flows, sequences, data models, dependencies), rendered to SVG/PNG. Also updates previously generated diagrams.
+disable-model-invocation: true
 ---
 
 # Codebase diagrams (C4 via Structurizr + free-form via D2)
@@ -30,6 +31,7 @@ Images are SVG by default (small, sharp, render on GitHub/GitLab). Pass `--forma
 write PNG previews to a scratch folder outside the repo for you to look at.
 
 Bundled resources:
+
 - `scripts/preflight.sh` – verifies the toolchain end-to-end (mandatory first step)
 - `scripts/render-c4.sh <dir> [--format svg|png|both]` – validate `workspace.dsl`, export views into `c4/`
 - `scripts/render-d2.sh <dir> [--format svg|png|both]` – format, validate and render every `.d2` in `d2/`
@@ -131,6 +133,7 @@ to ask for it. If you find yourself planning more, you are drawing things becaus
 because someone needs them.
 
 **The default core** - start here and add only what passes the tests below:
+
 1. **Container view** - almost always. It is the single most useful architecture diagram.
 2. **System Context view** - only if it shows something the container view doesn't: several user
    roles or several external systems. With one user and zero or one external system, skip it; the
@@ -141,6 +144,7 @@ because someone needs them.
 
 **Every further candidate must pass all four tests**, otherwise leave it out (and mention it as a
 possible follow-up in the report):
+
 - *Real question*: you can name the concrete question it answers ("how does a payment get retried
   after a webhook fails?"), not a category ("data model").
 - *Not already answered*: no other planned diagram shows substantially the same thing. Two
@@ -154,7 +158,7 @@ possible follow-up in the report):
 Typical additions that often pass, when the code gives them substance:
 
 | Question | Diagram | When it earns its place |
-|---|---|---|
+| --- | --- | --- |
 | "What's inside the main service?" | C4 Component view | The one container where most business logic lives *and* its internal modules are non-obvious. Never for every container. |
 | "What actually runs where?" | C4 Deployment view *or* D2 infra topology (not both) | IaC/k8s/cloud config defines a non-trivial production topology. Model production only, not each environment. |
 | "What states can the main entity be in?" | D2 state diagram | An explicit status field with guarded transitions spread across the code. |
@@ -233,6 +237,7 @@ If a planned diagram turns out not to be worth it once you draw it (too thin, du
 delete its source and mention it in the report rather than shipping a weak one.
 
 Conventions:
+
 - Put a title at the top as a `text` shape or use `title: |md # ... |` style header, and keep
   labels short; move detail into `tooltip` rather than the label.
 - Define `classes` for semantics used more than once (`external`, `database`, `queue`, `async`,
